@@ -11,7 +11,6 @@ import {
   outerWidth,
 } from './../../../helpers/dom/element';
 import { stopImmediatePropagation } from './../../../helpers/dom/event';
-import { objectEach } from './../../../helpers/object';
 import { isMobileBrowser } from './../../../helpers/browser';
 import EventManager from './../../../eventManager';
 import CellCoords from './cell/coords';
@@ -64,7 +63,10 @@ class Border {
     this.corner = null;
     this.cornerStyle = null;
 
-    this.createBorders(settings);
+    this.selectionHandles = {
+      styles: {}
+    };
+
     this.registerListeners();
   }
 
@@ -73,12 +75,22 @@ class Border {
    * @param {Function} callback Function to perform for all elements, with that element as the argument
    */
   forAllDomElements(callback) {
-    callback(this.top);
-    callback(this.left);
-    callback(this.bottom);
-    callback(this.right);
-    callback(this.corner);
-    if (this.selectionHandles) {
+    if(this.top){
+      callback(this.top);
+    }
+    if(this.left){
+      callback(this.left);
+    }
+    if(this.bottom){
+      callback(this.bottom);
+    }
+    if(this.right){
+      callback(this.right);
+    }
+    if(this.corner){
+      callback(this.corner);
+    }
+    if (this.selectionHandles.topLeft) {
       callback(this.selectionHandles.topLeft);
       callback(this.selectionHandles.bottomRight);
       callback(this.selectionHandles.topLeftHitArea);
@@ -94,10 +106,6 @@ class Border {
 
     this.eventManager.addEventListener(documentBody, 'mousedown', () => this.onMouseDown());
     this.eventManager.addEventListener(documentBody, 'mouseup', () => this.onMouseUp());
-
-    this.forAllDomElements((elem) => {
-      this.eventManager.addEventListener(elem, 'mouseenter', event => this.onMouseEnter(event, elem));
-    });
   }
 
   /**
@@ -168,108 +176,78 @@ class Border {
    *
    * @param {Object} settings
    */
-  createBorders(settings) {
+  createBorder(position) {
     const { rootDocument } = this.wot;
 
-    const borderDivs = ['top', 'left', 'bottom', 'right', 'corner'];
-    let style;
-
-    for (let i = 0; i < 5; i++) {
-      const position = borderDivs[i];
       const div = rootDocument.createElement('div');
 
       div.className = `wtBorder ${this.settings.className || ''}`; // + borderDivs[i];
 
-      if (this.settings[position] && this.settings[position].hide) {
-        div.className += ' hidden';
-      }
-      style = div.style;
-      style.backgroundColor = (this.settings[position] && this.settings[position].color) ? this.settings[position].color : settings.border.color;
-      style.height = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${settings.border.width}px`;
-      style.width = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${settings.border.width}px`;
+      const style = div.style;
+      style.backgroundColor = (this.settings[position] && this.settings[position].color) ? this.settings[position].color : this.settings.border.color;
+      style.height = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${this.settings.border.width}px`;
+      style.width = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${this.settings.border.width}px`;
 
       this.bordersHolder.appendChild(div);
       this[position] = div;
-    }
+      this[`${position}Style`] = style;
+    
+      if (position === 'corner') {
+        div.className += ' corner';
+        style.width = this.cornerDefaultStyle.width;
+        style.height = this.cornerDefaultStyle.height;
+        style.border = [
+          this.cornerDefaultStyle.borderWidth,
+          this.cornerDefaultStyle.borderStyle,
+          this.cornerDefaultStyle.borderColor
+        ].join(' ');
+      }
 
-    this.topStyle = this.top.style;
-    this.leftStyle = this.left.style;
-    this.bottomStyle = this.bottom.style;
-    this.rightStyle = this.right.style;
-
-    this.corner.className += ' corner';
-    this.cornerStyle = this.corner.style;
-    this.cornerStyle.width = this.cornerDefaultStyle.width;
-    this.cornerStyle.height = this.cornerDefaultStyle.height;
-    this.cornerStyle.border = [
-      this.cornerDefaultStyle.borderWidth,
-      this.cornerDefaultStyle.borderStyle,
-      this.cornerDefaultStyle.borderColor
-    ].join(' ');
-
-    if (isMobileBrowser()) {
-      this.createMultipleSelectorHandles();
-    }
-    this.disappear();
+      this.eventManager.addEventListener(div, 'mouseenter', event => this.onMouseEnter(event, div));
   }
 
   /**
    * Create multiple selector handler for mobile devices
    */
-  createMultipleSelectorHandles() {
+  createMultipleSelectorHandles(position) {
     const { rootDocument } = this.wot;
+    const positionHitArea = `${position}HitArea`;
 
-    this.selectionHandles = {
-      topLeft: rootDocument.createElement('DIV'),
-      topLeftHitArea: rootDocument.createElement('DIV'),
-      bottomRight: rootDocument.createElement('DIV'),
-      bottomRightHitArea: rootDocument.createElement('DIV')
-    };
+    const div = rootDocument.createElement('DIV');
+    this.selectionHandles[position] = div;
+    const divHitArea = rootDocument.createElement('DIV');
+    this.selectionHandles[positionHitArea] = divHitArea;
+
     const width = 10;
     const hitAreaWidth = 40;
 
-    this.selectionHandles.topLeft.className = 'topLeftSelectionHandle';
-    this.selectionHandles.topLeftHitArea.className = 'topLeftSelectionHandle-HitArea';
-    this.selectionHandles.bottomRight.className = 'bottomRightSelectionHandle';
-    this.selectionHandles.bottomRightHitArea.className = 'bottomRightSelectionHandle-HitArea';
+    div.className = `${position}SelectionHandle`;
+    divHitArea.className = `${position}SelectionHandle-HitArea`;
 
-    this.selectionHandles.styles = {
-      topLeft: this.selectionHandles.topLeft.style,
-      topLeftHitArea: this.selectionHandles.topLeftHitArea.style,
-      bottomRight: this.selectionHandles.bottomRight.style,
-      bottomRightHitArea: this.selectionHandles.bottomRightHitArea.style
-    };
+    this.selectionHandles.styles[position] = div.style;
+    this.selectionHandles.styles[positionHitArea] = divHitArea.style;
 
-    const hitAreaStyle = {
+    Object.assign(divHitArea.style, {
       position: 'absolute',
       height: `${hitAreaWidth}px`,
       width: `${hitAreaWidth}px`,
       'border-radius': `${parseInt(hitAreaWidth / 1.5, 10)}px`,
-    };
-
-    objectEach(hitAreaStyle, (value, key) => {
-      this.selectionHandles.styles.bottomRightHitArea[key] = value;
-      this.selectionHandles.styles.topLeftHitArea[key] = value;
     });
 
-    const handleStyle = {
+    Object.assign(div.style, {
       position: 'absolute',
       height: `${width}px`,
       width: `${width}px`,
       'border-radius': `${parseInt(width / 1.5, 10)}px`,
       background: '#F5F5FF',
       border: '1px solid #4285c8'
-    };
-
-    objectEach(handleStyle, (value, key) => {
-      this.selectionHandles.styles.bottomRight[key] = value;
-      this.selectionHandles.styles.topLeft[key] = value;
     });
 
-    this.bordersHolder.appendChild(this.selectionHandles.topLeft);
-    this.bordersHolder.appendChild(this.selectionHandles.bottomRight);
-    this.bordersHolder.appendChild(this.selectionHandles.topLeftHitArea);
-    this.bordersHolder.appendChild(this.selectionHandles.bottomRightHitArea);
+    this.bordersHolder.appendChild(div);
+    this.bordersHolder.appendChild(divHitArea);
+
+    this.eventManager.addEventListener(div, 'mouseenter', event => this.onMouseEnter(event, div));
+    this.eventManager.addEventListener(divHitArea, 'mouseenter', event => this.onMouseEnter(event, divHitArea));
   }
 
   isPartRange(row, col) {
@@ -439,84 +417,113 @@ class Border {
       width = width > 0 ? width - 1 : 0;
     }
 
-    this.topStyle.top = `${top}px`;
-    this.topStyle.left = `${left}px`;
-    this.topStyle.width = `${width}px`;
-    this.topStyle.display = 'block';
+    if(this.shouldBorderBeRenderedAtPositon('top')) {
+      this.ensureBorderAtPosition('top');
+      this.topStyle.top = `${top}px`;
+      this.topStyle.left = `${left}px`;
+      this.topStyle.width = `${width}px`;
+      this.topStyle.display = 'block';
+    }
 
-    this.leftStyle.top = `${top}px`;
-    this.leftStyle.left = `${left}px`;
-    this.leftStyle.height = `${height}px`;
-    this.leftStyle.display = 'block';
+    if(this.shouldBorderBeRenderedAtPositon('left')) {
+      this.ensureBorderAtPosition('left');
+      this.leftStyle.top = `${top}px`;
+      this.leftStyle.left = `${left}px`;
+      this.leftStyle.height = `${height}px`;
+      this.leftStyle.display = 'block';
+    }
 
     const delta = Math.floor(this.settings.border.width / 2);
 
-    this.bottomStyle.top = `${top + height - delta}px`;
-    this.bottomStyle.left = `${left}px`;
-    this.bottomStyle.width = `${width}px`;
-    this.bottomStyle.display = 'block';
-
-    this.rightStyle.top = `${top}px`;
-    this.rightStyle.left = `${left + width - delta}px`;
-    this.rightStyle.height = `${height + 1}px`;
-    this.rightStyle.display = 'block';
-
-    let cornerVisibleSetting = this.settings.border.cornerVisible;
-    cornerVisibleSetting = typeof cornerVisibleSetting === 'function' ? cornerVisibleSetting(this.settings.layerLevel) : cornerVisibleSetting;
-
-    const hookResult = this.wot.getSetting('onModifyGetCellCoords', toRow, toColumn);
-    let [checkRow, checkCol] = [toRow, toColumn];
-
-    if (hookResult && Array.isArray(hookResult)) {
-      [,, checkRow, checkCol] = hookResult;
+    if(this.shouldBorderBeRenderedAtPositon('bottom')) {
+      this.ensureBorderAtPosition('bottom');
+      this.bottomStyle.top = `${top + height - delta}px`;
+      this.bottomStyle.left = `${left}px`;
+      this.bottomStyle.width = `${width}px`;
+      this.bottomStyle.display = 'block';
     }
 
-    if (isMobileBrowser() || !cornerVisibleSetting || this.isPartRange(checkRow, checkCol)) {
-      this.cornerStyle.display = 'none';
+    if(this.shouldBorderBeRenderedAtPositon('right')) {
+      this.ensureBorderAtPosition('right');
+      this.rightStyle.top = `${top}px`;
+      this.rightStyle.left = `${left + width - delta}px`;
+      this.rightStyle.height = `${height + 1}px`;
+      this.rightStyle.display = 'block';
+    }
 
-    } else {
-      this.cornerStyle.top = `${top + height - 4}px`;
-      this.cornerStyle.left = `${left + width - 4}px`;
-      this.cornerStyle.borderRightWidth = this.cornerDefaultStyle.borderWidth;
-      this.cornerStyle.width = this.cornerDefaultStyle.width;
-
-      // Hide the fill handle, so the possible further adjustments won't force unneeded scrollbars.
-      this.cornerStyle.display = 'none';
-
-      let trimmingContainer = getTrimmingContainer(wtTable.TABLE);
-      const trimToWindow = trimmingContainer === rootWindow;
-
-      if (trimToWindow) {
-        trimmingContainer = rootDocument.documentElement;
+    if(this.shouldBorderBeRenderedAtPositon('corner')) {
+      this.ensureBorderAtPosition('corner');
+      
+      const hookResult = this.wot.getSetting('onModifyGetCellCoords', toRow, toColumn);
+      let [checkRow, checkCol] = [toRow, toColumn];
+  
+      if (hookResult && Array.isArray(hookResult)) {
+        [,, checkRow, checkCol] = hookResult;
       }
 
-      if (toColumn === this.wot.getSetting('totalColumns') - 1) {
-        const toTdOffsetLeft = trimToWindow ? toTD.getBoundingClientRect().left : toTD.offsetLeft;
-        const cornerRightEdge = toTdOffsetLeft + outerWidth(toTD) + (parseInt(this.cornerDefaultStyle.width, 10) / 2);
-        const cornerOverlappingContainer = cornerRightEdge >= innerWidth(trimmingContainer);
-
-        if (cornerOverlappingContainer) {
-          this.cornerStyle.left = `${Math.floor(left + width - 3 - (parseInt(this.cornerDefaultStyle.width, 10) / 2))}px`;
-          this.cornerStyle.borderRightWidth = 0;
+      //what if `cornerVisibleSetting` changed between appears? to repro: drag handle one cell down, release
+      if (isMobileBrowser() || this.isPartRange(checkRow, checkCol)) {
+        this.cornerStyle.display = 'none';
+  
+      } else {
+        this.cornerStyle.top = `${top + height - 4}px`;
+        this.cornerStyle.left = `${left + width - 4}px`;
+        this.cornerStyle.borderRightWidth = this.cornerDefaultStyle.borderWidth;
+        this.cornerStyle.width = this.cornerDefaultStyle.width;
+  
+        // Hide the fill handle, so the possible further adjustments won't force unneeded scrollbars.
+        this.cornerStyle.display = 'none';
+  
+        let trimmingContainer = getTrimmingContainer(wtTable.TABLE);
+        const trimToWindow = trimmingContainer === rootWindow;
+  
+        if (trimToWindow) {
+          trimmingContainer = rootDocument.documentElement;
         }
-      }
-
-      if (toRow === this.wot.getSetting('totalRows') - 1) {
-        const toTdOffsetTop = trimToWindow ? toTD.getBoundingClientRect().top : toTD.offsetTop;
-        const cornerBottomEdge = toTdOffsetTop + outerHeight(toTD) + (parseInt(this.cornerDefaultStyle.height, 10) / 2);
-        const cornerOverlappingContainer = cornerBottomEdge >= innerHeight(trimmingContainer);
-
-        if (cornerOverlappingContainer) {
-          this.cornerStyle.top = `${Math.floor(top + height - 3 - (parseInt(this.cornerDefaultStyle.height, 10) / 2))}px`;
-          this.cornerStyle.borderBottomWidth = 0;
+  
+        if (toColumn === this.wot.getSetting('totalColumns') - 1) {
+          const toTdOffsetLeft = trimToWindow ? toTD.getBoundingClientRect().left : toTD.offsetLeft;
+          const cornerRightEdge = toTdOffsetLeft + outerWidth(toTD) + (parseInt(this.cornerDefaultStyle.width, 10) / 2);
+          const cornerOverlappingContainer = cornerRightEdge >= innerWidth(trimmingContainer);
+  
+          if (cornerOverlappingContainer) {
+            this.cornerStyle.left = `${Math.floor(left + width - 3 - (parseInt(this.cornerDefaultStyle.width, 10) / 2))}px`;
+            this.cornerStyle.borderRightWidth = 0;
+          }
         }
+  
+        if (toRow === this.wot.getSetting('totalRows') - 1) {
+          const toTdOffsetTop = trimToWindow ? toTD.getBoundingClientRect().top : toTD.offsetTop;
+          const cornerBottomEdge = toTdOffsetTop + outerHeight(toTD) + (parseInt(this.cornerDefaultStyle.height, 10) / 2);
+          const cornerOverlappingContainer = cornerBottomEdge >= innerHeight(trimmingContainer);
+  
+          if (cornerOverlappingContainer) {
+            this.cornerStyle.top = `${Math.floor(top + height - 3 - (parseInt(this.cornerDefaultStyle.height, 10) / 2))}px`;
+            this.cornerStyle.borderBottomWidth = 0;
+          }
+        }
+  
+        this.cornerStyle.display = 'block';
       }
-
-      this.cornerStyle.display = 'block';
     }
 
     if (isMobileBrowser()) {
       this.updateMultipleSelectionHandlesPosition(toRow, toColumn, top, left, width, height);
+    }
+  }
+
+  shouldBorderBeRenderedAtPositon(position) {
+    if (position === 'corner') {
+      let cornerVisibleSetting = this.settings.border.cornerVisible;
+      cornerVisibleSetting = typeof cornerVisibleSetting === 'function' ? cornerVisibleSetting(this.settings.layerLevel) : cornerVisibleSetting;
+      return cornerVisibleSetting;
+    }
+    return !((this.settings[position] && this.settings[position].hide) ? this.settings[position].hide : this.settings.border.hide);
+  }
+
+  ensureBorderAtPosition(position) {
+    if (!this[position]) {
+      this.createBorder(position);
     }
   }
 
@@ -613,25 +620,30 @@ class Border {
    * @param {String} borderElement Coordinate where add/remove border: top, right, bottom, left.
    */
   changeBorderStyle(borderElement, border) {
-    const style = this[borderElement].style;
     const borderStyle = border[borderElement];
 
     if (!borderStyle || borderStyle.hide) {
-      addClass(this[borderElement], 'hidden');
-
+      if (this[borderElement]) {
+        addClass(this[borderElement], 'hidden');
+      }
     } else {
-      if (hasClass(this[borderElement], 'hidden')) {
-        removeClass(this[borderElement], 'hidden');
+      if (!this[borderElement]) {
+        this.createBorder(borderElement);
       }
-
-      style.backgroundColor = borderStyle.color;
-
-      if (borderElement === 'top' || borderElement === 'bottom') {
-        style.height = `${borderStyle.width}px`;
-      }
-
-      if (borderElement === 'right' || borderElement === 'left') {
-        style.width = `${borderStyle.width}px`;
+      else {
+        if (hasClass(this[borderElement], 'hidden')) {
+          removeClass(this[borderElement], 'hidden');
+        }
+        const style = this[borderElement].style;
+        style.backgroundColor = borderStyle.color;
+  
+        if (borderElement === 'top' || borderElement === 'bottom') {
+          style.height = `${borderStyle.width}px`;
+        }
+  
+        if (borderElement === 'right' || borderElement === 'left') {
+          style.width = `${borderStyle.width}px`;
+        }
       }
     }
   }
@@ -675,11 +687,21 @@ class Border {
    * Hide border
    */
   disappear() {
-    this.topStyle.display = 'none';
-    this.leftStyle.display = 'none';
-    this.bottomStyle.display = 'none';
-    this.rightStyle.display = 'none';
-    this.cornerStyle.display = 'none';
+    if (this.topStyle) {
+      this.topStyle.display = 'none';
+    }
+    if (this.leftStyle) {
+      this.leftStyle.display = 'none';
+    }
+    if (this.bottomStyle) {
+      this.bottomStyle.display = 'none';
+    }
+    if (this.rightStyle) {
+      this.rightStyle.display = 'none';
+    }
+    if (this.cornerStyle) {
+      this.cornerStyle.display = 'none';
+    }
 
     if (isMobileBrowser()) {
       this.selectionHandles.styles.topLeft.display = 'none';
@@ -692,7 +714,7 @@ class Border {
    */
   destroy() {
     this.eventManager.destroyWithOwnEventsOnly();
-    this.forAllDomElements(elem => elem.remove());
+    this.forAllDomElements(elem => elem.parentNode.removeChild(elem));
   }
 }
 
