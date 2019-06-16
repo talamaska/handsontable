@@ -33,7 +33,16 @@ class Border {
     this.wot = wotInstance;
     this.settings = settings;
     this.mouseDown = false;
-    this.main = null;
+
+    const { rootDocument, wtTable } = this.wot;
+    this.bordersHolder = wtTable.bordersHolder;
+
+    if (!this.bordersHolder) {
+      this.bordersHolder = rootDocument.createElement('div');
+      this.bordersHolder.className = 'htBorders';
+      wtTable.bordersHolder = this.bordersHolder;
+      wtTable.spreader.appendChild(this.bordersHolder);
+    }
 
     this.top = null;
     this.left = null;
@@ -60,6 +69,24 @@ class Border {
   }
 
   /**
+   * Perform a callback for all DOM elements
+   * @param {Function} callback Function to perform for all elements, with that element as the argument
+   */
+  forAllDomElements(callback) {
+    callback(this.top);
+    callback(this.left);
+    callback(this.bottom);
+    callback(this.right);
+    callback(this.corner);
+    if (this.selectionHandles) {
+      callback(this.selectionHandles.topLeft);
+      callback(this.selectionHandles.bottomRight);
+      callback(this.selectionHandles.topLeftHitArea);
+      callback(this.selectionHandles.bottomRightHitArea);
+    }
+  }
+
+  /**
    * Register all necessary events
    */
   registerListeners() {
@@ -68,9 +95,9 @@ class Border {
     this.eventManager.addEventListener(documentBody, 'mousedown', () => this.onMouseDown());
     this.eventManager.addEventListener(documentBody, 'mouseup', () => this.onMouseUp());
 
-    for (let c = 0, len = this.main.childNodes.length; c < len; c++) {
-      this.eventManager.addEventListener(this.main.childNodes[c], 'mouseenter', event => this.onMouseEnter(event, this.main.childNodes[c]));
-    }
+    this.forAllDomElements((elem) => {
+      this.eventManager.addEventListener(elem, 'mouseenter', event => this.onMouseEnter(event, elem));
+    });
   }
 
   /**
@@ -143,13 +170,9 @@ class Border {
    */
   createBorders(settings) {
     const { rootDocument } = this.wot;
-    this.main = rootDocument.createElement('div');
 
     const borderDivs = ['top', 'left', 'bottom', 'right', 'corner'];
-    let style = this.main.style;
-    style.position = 'absolute';
-    style.top = 0;
-    style.left = 0;
+    let style;
 
     for (let i = 0; i < 5; i++) {
       const position = borderDivs[i];
@@ -165,19 +188,15 @@ class Border {
       style.height = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${settings.border.width}px`;
       style.width = (this.settings[position] && this.settings[position].width) ? `${this.settings[position].width}px` : `${settings.border.width}px`;
 
-      this.main.appendChild(div);
+      this.bordersHolder.appendChild(div);
+      this[position] = div;
     }
-    this.top = this.main.childNodes[0];
-    this.left = this.main.childNodes[1];
-    this.bottom = this.main.childNodes[2];
-    this.right = this.main.childNodes[3];
 
     this.topStyle = this.top.style;
     this.leftStyle = this.left.style;
     this.bottomStyle = this.bottom.style;
     this.rightStyle = this.right.style;
 
-    this.corner = this.main.childNodes[4];
     this.corner.className += ' corner';
     this.cornerStyle = this.corner.style;
     this.cornerStyle.width = this.cornerDefaultStyle.width;
@@ -192,17 +211,6 @@ class Border {
       this.createMultipleSelectorHandles();
     }
     this.disappear();
-
-    const { wtTable } = this.wot;
-    let bordersHolder = wtTable.bordersHolder;
-
-    if (!bordersHolder) {
-      bordersHolder = rootDocument.createElement('div');
-      bordersHolder.className = 'htBorders';
-      wtTable.bordersHolder = bordersHolder;
-      wtTable.spreader.appendChild(bordersHolder);
-    }
-    bordersHolder.appendChild(this.main);
   }
 
   /**
@@ -258,10 +266,10 @@ class Border {
       this.selectionHandles.styles.topLeft[key] = value;
     });
 
-    this.main.appendChild(this.selectionHandles.topLeft);
-    this.main.appendChild(this.selectionHandles.bottomRight);
-    this.main.appendChild(this.selectionHandles.topLeftHitArea);
-    this.main.appendChild(this.selectionHandles.bottomRightHitArea);
+    this.bordersHolder.appendChild(this.selectionHandles.topLeft);
+    this.bordersHolder.appendChild(this.selectionHandles.bottomRight);
+    this.bordersHolder.appendChild(this.selectionHandles.topLeftHitArea);
+    this.bordersHolder.appendChild(this.selectionHandles.bottomRightHitArea);
   }
 
   isPartRange(row, col) {
@@ -684,7 +692,7 @@ class Border {
    */
   destroy() {
     this.eventManager.destroyWithOwnEventsOnly();
-    this.main.remove();
+    this.forAllDomElements(elem => elem.remove());
   }
 }
 
