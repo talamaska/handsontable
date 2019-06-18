@@ -35,6 +35,16 @@ class Selection {
   }
 
   /**
+   * Return an existing intance of Border class if defined for a given Walkontable instance
+   *
+   * @param {Walkontable} wotInstance
+   * @returns {Border|undefined}
+   */
+  getBorderIfExists(wotInstance) {
+    return this.instanceBorders[wotInstance.guid];
+  }
+
+  /**
    * Checks if selection is empty
    *
    * @returns {Boolean}
@@ -185,8 +195,9 @@ class Selection {
    */
   draw(wotInstance) {
     if (this.isEmpty()) {
-      if (this.settings.border) {
-        this.getBorder(wotInstance).disappear();
+      const existingBorder = this.getBorderIfExists(wotInstance);
+      if (this.settings.border && existingBorder) {
+        existingBorder.disappear();
       }
 
       return;
@@ -196,6 +207,7 @@ class Selection {
     const renderedColumns = wotInstance.wtTable.getRenderedColumnsCount();
     const corners = this.getCorners();
     const [topRow, topColumn, bottomRow, bottomColumn] = corners;
+    let areRenderedCells = false;
 
     for (let column = 0; column < renderedColumns; column += 1) {
       const sourceCol = wotInstance.wtTable.columnFilter.renderedToSource(column);
@@ -241,6 +253,8 @@ class Selection {
       }
 
       for (let column = 0; column < renderedColumns; column += 1) {
+        areRenderedCells = true;
+
         const sourceCol = wotInstance.wtTable.columnFilter.renderedToSource(column);
 
         if (sourceRow >= topRow && sourceRow <= bottomRow && sourceCol >= topColumn && sourceCol <= bottomColumn) {
@@ -272,7 +286,7 @@ class Selection {
 
     wotInstance.getSetting('onBeforeDrawBorders', corners, this.settings.className);
 
-    if (this.settings.border) {
+    if (areRenderedCells && this.settings.border) {
       // warning! border.appear modifies corners!
       this.getBorder(wotInstance).appear(corners);
     }
