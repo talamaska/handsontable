@@ -15,6 +15,18 @@ import { isMobileBrowser } from './../../../helpers/browser';
 import EventManager from './../../../eventManager';
 import CellCoords from './cell/coords';
 
+const cornerDefaultStyle = {
+  width: '6px',
+  height: '6px',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#FFF'
+};
+const defaultBorder = {
+  width: 1,
+  color: '#000',
+};
+
 /**
  *
  */
@@ -28,19 +40,17 @@ class Border {
       return;
     }
     this.eventManager = new EventManager(wotInstance);
-    this.instance = wotInstance;
     this.wot = wotInstance;
     this.settings = settings;
     this.mouseDown = false;
 
-    const { rootDocument, wtTable } = this.wot;
-    this.bordersHolder = wtTable.bordersHolder;
+    this.bordersHolder = this.wot.wtTable.bordersHolder;
 
     if (!this.bordersHolder) {
-      this.bordersHolder = rootDocument.createElement('div');
+      this.bordersHolder = this.wot.rootDocument.createElement('div');
       this.bordersHolder.className = 'htBorders';
-      wtTable.bordersHolder = this.bordersHolder;
-      wtTable.spreader.appendChild(this.bordersHolder);
+      this.wot.wtTable.bordersHolder = this.bordersHolder;
+      this.wot.wtTable.spreader.appendChild(this.bordersHolder);
     }
 
     this.top = null;
@@ -53,13 +63,6 @@ class Border {
     this.bottomStyle = null;
     this.rightStyle = null;
 
-    this.cornerDefaultStyle = {
-      width: '6px',
-      height: '6px',
-      borderWidth: '1px',
-      borderStyle: 'solid',
-      borderColor: '#FFF'
-    };
     this.corner = null;
     this.cornerStyle = null;
 
@@ -177,9 +180,7 @@ class Border {
    * @param {Object} settings
    */
   createBorder(position) {
-    const { rootDocument } = this.wot;
-
-      const div = rootDocument.createElement('div');
+      const div = this.wot.rootDocument.createElement('div');
 
       div.className = `wtBorder ${this.settings.className || ''}`; // + borderDivs[i];
 
@@ -194,12 +195,12 @@ class Border {
     
       if (position === 'corner') {
         div.className += ' corner';
-        style.width = this.cornerDefaultStyle.width;
-        style.height = this.cornerDefaultStyle.height;
+        style.width = cornerDefaultStyle.width;
+        style.height = cornerDefaultStyle.height;
         style.border = [
-          this.cornerDefaultStyle.borderWidth,
-          this.cornerDefaultStyle.borderStyle,
-          this.cornerDefaultStyle.borderColor
+          cornerDefaultStyle.borderWidth,
+          cornerDefaultStyle.borderStyle,
+          cornerDefaultStyle.borderColor
         ].join(' ');
       }
 
@@ -210,12 +211,11 @@ class Border {
    * Create multiple selector handler for mobile devices
    */
   createMultipleSelectorHandles(position) {
-    const { rootDocument } = this.wot;
     const positionHitArea = `${position}HitArea`;
 
-    const div = rootDocument.createElement('DIV');
+    const div = this.wot.rootDocument.createElement('DIV');
     this.selectionHandles[position] = div;
-    const divHitArea = rootDocument.createElement('DIV');
+    const divHitArea = this.wot.rootDocument.createElement('DIV');
     this.selectionHandles[positionHitArea] = divHitArea;
 
     const width = 10;
@@ -315,7 +315,7 @@ class Border {
       return;
     }
 
-    const { wtTable, rootDocument, rootWindow } = this.wot;
+    const { wtTable, rootWindow } = this.wot;
     let fromRow;
     let toRow;
     let fromColumn;
@@ -468,8 +468,8 @@ class Border {
       } else {
         this.cornerStyle.top = `${top + height - 4}px`;
         this.cornerStyle.left = `${left + width - 4}px`;
-        this.cornerStyle.borderRightWidth = this.cornerDefaultStyle.borderWidth;
-        this.cornerStyle.width = this.cornerDefaultStyle.width;
+        this.cornerStyle.borderRightWidth = cornerDefaultStyle.borderWidth;
+        this.cornerStyle.width = cornerDefaultStyle.width;
   
         // Hide the fill handle, so the possible further adjustments won't force unneeded scrollbars.
         this.cornerStyle.display = 'none';
@@ -478,27 +478,27 @@ class Border {
         const trimToWindow = trimmingContainer === rootWindow;
   
         if (trimToWindow) {
-          trimmingContainer = rootDocument.documentElement;
+          trimmingContainer = this.wot.rootDocument.documentElement;
         }
   
         if (toColumn === this.wot.getSetting('totalColumns') - 1) {
           const toTdOffsetLeft = trimToWindow ? toTD.getBoundingClientRect().left : toTD.offsetLeft;
-          const cornerRightEdge = toTdOffsetLeft + outerWidth(toTD) + (parseInt(this.cornerDefaultStyle.width, 10) / 2);
+          const cornerRightEdge = toTdOffsetLeft + outerWidth(toTD) + (parseInt(cornerDefaultStyle.width, 10) / 2);
           const cornerOverlappingContainer = cornerRightEdge >= innerWidth(trimmingContainer);
   
           if (cornerOverlappingContainer) {
-            this.cornerStyle.left = `${Math.floor(left + width - 3 - (parseInt(this.cornerDefaultStyle.width, 10) / 2))}px`;
+            this.cornerStyle.left = `${Math.floor(left + width - 3 - (parseInt(cornerDefaultStyle.width, 10) / 2))}px`;
             this.cornerStyle.borderRightWidth = 0;
           }
         }
   
         if (toRow === this.wot.getSetting('totalRows') - 1) {
           const toTdOffsetTop = trimToWindow ? toTD.getBoundingClientRect().top : toTD.offsetTop;
-          const cornerBottomEdge = toTdOffsetTop + outerHeight(toTD) + (parseInt(this.cornerDefaultStyle.height, 10) / 2);
+          const cornerBottomEdge = toTdOffsetTop + outerHeight(toTD) + (parseInt(cornerDefaultStyle.height, 10) / 2);
           const cornerOverlappingContainer = cornerBottomEdge >= innerHeight(trimmingContainer);
   
           if (cornerOverlappingContainer) {
-            this.cornerStyle.top = `${Math.floor(top + height - 3 - (parseInt(this.cornerDefaultStyle.height, 10) / 2))}px`;
+            this.cornerStyle.top = `${Math.floor(top + height - 3 - (parseInt(cornerDefaultStyle.height, 10) / 2))}px`;
             this.cornerStyle.borderBottomWidth = 0;
           }
         }
@@ -655,12 +655,7 @@ class Border {
    * @param {HTMLElement} position
    */
   changeBorderToDefaultStyle(position) {
-    const defaultBorder = {
-      width: 1,
-      color: '#000',
-    };
     const style = this[position].style;
-
     style.backgroundColor = defaultBorder.color;
     style.width = `${defaultBorder.width}px`;
     style.height = `${defaultBorder.width}px`;
