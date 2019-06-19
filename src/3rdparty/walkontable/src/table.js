@@ -275,6 +275,7 @@ class Table {
       this.alignOverlaysWithTrimmingContainer();
       this._doDraw(); // creates calculator after draw
     }
+    console.log("calling refreshSelections", wot.guid );
     this.refreshSelections(runFastDraw);
 
     if (!this.isWorkingOnClone()) {

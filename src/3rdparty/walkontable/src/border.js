@@ -36,9 +36,26 @@ class Border {
    * @param {Object} settings
    */
   constructor(wotInstance, settings) {
+    //console.count("border constructor");
+    //console.log("border wotInstance:", wotInstance.guid, settings.className);
     if (!settings) {
       return;
     }
+    var that = this;
+    if (!settings.className) {
+      this.isCustom = true;
+    }
+    this.appearCalls = 0;
+    this.abandonedAppearCalls = 0;
+    this.abandonedAppearCalls2 = 0;
+    this.appearedLeft = 0;
+    this.disappearCalls = 0;
+    setTimeout(() => {
+      if (!settings.className && that.left === null) {
+        //console.log("Border", that.left, that);
+
+      }
+    }, 2000);
     this.eventManager = new EventManager(wotInstance);
     this.wot = wotInstance;
     this.settings = settings;
@@ -311,7 +328,12 @@ class Border {
    * @param {Array} corners
    */
   appear(corners) {
+    this.appearCalls++;
     if (this.disabled) {
+      throw new Error("this is never executed");
+
+
+      this.abandonedAppearCalls++;
       return;
     }
 
@@ -361,6 +383,8 @@ class Border {
       }
     }
     if (fromRow === void 0 || fromColumn === void 0) {
+      debugger;
+      this.abandonedAppearCalls2++;
       this.disappear();
 
       return;
@@ -426,11 +450,16 @@ class Border {
     }
 
     if(this.shouldBorderBeRenderedAtPositon('left')) {
+      this.appearedLeft++;
       this.ensureBorderAtPosition('left');
       this.leftStyle.top = `${top}px`;
       this.leftStyle.left = `${left}px`;
       this.leftStyle.height = `${height}px`;
       this.leftStyle.display = 'block';
+    }
+    else if (this.isCustom) {
+      //console.log("is custom, why not left?");
+      this.shouldBorderBeRenderedAtPositon('left');
     }
 
     const delta = Math.floor(this.settings.border.width / 2);
@@ -682,6 +711,7 @@ class Border {
    * Hide border
    */
   disappear() {
+    this.disappearCalls++;
     if (this.topStyle) {
       this.topStyle.display = 'none';
     }

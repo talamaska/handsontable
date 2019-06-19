@@ -12,6 +12,7 @@ class Selection {
    * @param {CellRange} cellRange
    */
   constructor(settings, cellRange) {
+    //console.count("selection constructor");
     this.settings = settings;
     this.cellRange = cellRange || null;
     this.instanceBorders = {};
@@ -253,12 +254,12 @@ class Selection {
       }
 
       for (let column = 0; column < renderedColumns; column += 1) {
-        areRenderedCells = true;
-
         const sourceCol = wotInstance.wtTable.columnFilter.renderedToSource(column);
 
         if (sourceRow >= topRow && sourceRow <= bottomRow && sourceCol >= topColumn && sourceCol <= bottomColumn) {
           // selected cell
+          areRenderedCells = true;
+
           if (this.settings.className) {
             this.addClassAtCoords(wotInstance, sourceRow, sourceCol, this.settings.className, this.settings.markIntersections);
           }
