@@ -15,6 +15,7 @@ import ColumnFilter from './filter/column';
 import RowFilter from './filter/row';
 import TableRenderer from './tableRenderer';
 import Overlay from './overlay/_base';
+import { getSvgRectangleRenderer, precalculateRectangles } from './svgRectangles';
 
 /**
  *
@@ -58,6 +59,10 @@ class Table {
 
     // Fix for jumping row headers (https://github.com/handsontable/handsontable/issues/3850)
     this.wot.wtSettings.settings.rowHeaderWidth = () => this._modifyRowHeaderWidth(origRowHeaderWidth);
+
+    const svg = this.holder.ownerDocument.createElement('svg');
+    this.hider.appendChild(svg);
+    this.renderSvgRectangles = getSvgRectangleRenderer(svg);
   }
 
   /**
@@ -379,7 +384,22 @@ class Table {
     for (let i = 0; i < len; i++) {
       highlights[i].draw(wot, fastDraw);
     }
-    // draw SVG rectangles here
+
+    const totalWidth = parseInt(this.hider.style.width, 10);
+    const totalHeight = parseInt(this.hider.style.height, 10);
+    const rects = precalculateRectangles(highlights);
+    let x1 = 0;
+    if (typeof wot.wtViewport.rowsRenderCalculator.startPosition === 'number') { // can be different if there are 0 rows, according to top.js
+      x1 = wot.wtViewport.columnsRenderCalculator.startPosition; // from top.js syncOverlayOffset
+    }
+    let y1 = 0;
+    if (typeof wot.wtViewport.rowsRenderCalculator.startPosition === 'number') { // can be different if there are 0 rows, according to top.js
+      y1 = wot.wtViewport.rowsRenderCalculator.startPosition; // from top.js syncOverlayOffset
+    }
+    // let viewportWidth = this.clone.wtTable.holder.style.width;
+    const width = wot.wtViewport.getWorkspaceWidth();
+    const height = wot.wtViewport.getWorkspaceHeight();
+    this.renderSvgRectangles(totalWidth, totalHeight, rects, x1, y1, x1 + width, y1 + height);
   }
 
   /**
